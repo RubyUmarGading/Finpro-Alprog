@@ -34,11 +34,25 @@ int main() {
     cout << "Connection accepted" << endl;
 
 
+    // Menerima data dari client
+    recv_size = recv(client_socket, messageRecv, sizeof(messageRecv) - 1, 0); 
+    
+    // Mengecek apakah terjadi kesalahan saat menerima data
+    if (recv_size == SOCKET_ERROR) {
+        cout << "Receive failed" << endl;
+    } else {
+        // Menambahkan null-terminator agar bisa diproses sebagai string C++
+        messageRecv[recv_size] = '\0';  
+        
+        // Menampilkan pesan yang diterima dari client
+        cout << "Received message from client: " << messageRecv << endl;
+    }
+
 
     closesocket(client_socket);
     closesocket(listen_socket);
     WSACleanup();
 
-	system("pause");
+    system("pause");
     return 0;
 }
