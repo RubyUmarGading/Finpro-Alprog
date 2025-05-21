@@ -1,8 +1,6 @@
 #include <iostream>
 #include <string>
 #include <winsock2.h>
-#include <sstream>
-
 using namespace std;
 
 #define SERVER "127.0.0.1"
@@ -12,30 +10,52 @@ int main() {
     WSADATA wsa;
     SOCKET client_socket;
     struct sockaddr_in server;
-    int recv_size;
-    string messageSend;
+    string file;
 
-    WSAStartup(MAKEWORD(2,2), &wsa);
+    // Inisialisasi Winsock dengan pengecekan error 
+    if (WSAStartup(MAKEWORD(2,2), &wsa) != 0) {
+        cout << "WSAStartup failed" << endl;
+        return 1;
+    }
 
+    // Membuat socket dengan pengecekan error
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_socket == INVALID_SOCKET) {
+        cout << "Could not create socket" << endl;
+        WSACleanup();
+        return 1;
+    }
+
+    // Konfigurasi alamat server
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = inet_addr(SERVER);
     server.sin_port = htons(PORT);
 
-    connect(client_socket, (struct sockaddr*)&server, sizeof(server));
+    // Menghubungkan ke server dengan pengecekan error 
+    cout << "Connecting to server..." << endl;
+    if (connect(client_socket, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR) {
+        cout << "Connection failed: " << WSAGetLastError() << endl;
+        closesocket(client_socket);
+        WSACleanup();
+        return 1;
+    }
 
-    string file;
+    cout << "Connected to server!" << endl;
 
-	cout << "Kirim data ke server ";
-	cin >> file; 
+    //  Menggunakan getline agar bisa input kalimat lengkap dengan spasi 
+    cout << "Kirim data ke server: ";
+    getline(cin, file); // Mengganti cin file agar bisa menangkap input dengan spasi
 
-	messageSend = file;
+    // Mengirim data ke server
+    if (send(client_socket, file.c_str(), file.length(), 0) == SOCKET_ERROR) {
+        // Pengecekan error saat pengiriman ===
+        cout << "Send failed: " << WSAGetLastError() << endl;
+    }
 
-    send(client_socket, messageSend.c_str(), messageSend.length(), 0);
-
+    // Menutup koneksi dan membersihkan Winsock
     closesocket(client_socket);
     WSACleanup();
 
-	system("pause");
+    system("pause");
     return 0;
 }
