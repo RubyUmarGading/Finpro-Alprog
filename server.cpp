@@ -72,6 +72,23 @@ int compareUnderflow(const Data& a, const Data& b) {
     return isEarlier(a, b) ? -1 : 1;
 }
 
+void quickSort(vector<Data>& arr, int low, int high, int (*cmp)(const Data&, const Data&)) {
+    if (low < high) {
+        Data pivot = arr[high];
+        int i = low - 1;
+        for (int j = low; j < high; ++j) {
+            if (cmp(arr[j], pivot) < 0) {
+                ++i;
+                swap(arr[i], arr[j]);
+            }
+        }
+        swap(arr[i + 1], arr[high]);
+        int pi = i + 1;
+        quickSort(arr, low, pi - 1, cmp);
+        quickSort(arr, pi + 1, high, cmp);
+    }
+}
+
 // Masukkan ke JSON
 void writeCritical(vector<Data> dataList) {
     json j;
