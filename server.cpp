@@ -58,7 +58,7 @@ void writeCritical(vector<Data> dataList) {
     json j;
 
     for (const Data& d : dataList) {
-        if (d.level <= 10 || d.level >= 200) {
+        if (d.level <= 25 || d.level >= 180) {
             json entry;
             entry["jam"] = d.jam;
             entry["menit"] = d.menit;
