@@ -52,6 +52,11 @@ vector<Data> readFile(string fileName) {
 
     return dataList;
 }
+//timestamp comparator
+bool isEarlier(const Data& a, const Data& b) {
+    if (a.jam != b.jam) return a.jam < b.jam;
+    return a.menit < b.menit;
+}
 
 // Masukkan ke JSON
 void writeCritical(vector<Data> dataList) {
