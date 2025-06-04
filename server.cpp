@@ -58,6 +58,13 @@ bool isEarlier(const Data& a, const Data& b) {
     return a.menit < b.menit;
 }
 
+//overflow comparator for quick sort
+int compareOverflow(const Data& a, const Data& b) {
+    if (a.level != b.level)
+        return b.level - a.level;
+    return isEarlier(a, b) ? -1 : 1;
+}
+
 // Masukkan ke JSON
 void writeCritical(vector<Data> dataList) {
     json j;
