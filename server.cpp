@@ -89,6 +89,38 @@ void quickSort(vector<Data>& arr, int low, int high, int (*cmp)(const Data&, con
     }
 }
 
+void sortAndSaveOverflowUnderflow(vector<Data>& dataList) {
+    vector<Data> waterlevel_dry, waterlevel_overflow;
+    for (const Data& d : dataList) {
+        if (d.level >= 180) waterlevel_overflow.push_back(d);
+        else if (d.level <= 25) waterlevel_dry.push_back(d);
+    }
+
+    if (!waterlevel_overflow.empty())
+        quickSort(waterlevel_overflow, 0, waterlevel_overflow.size() - 1, compareOverflow);
+
+    if (!waterlevel_dry.empty())
+        quickSort(waterlevel_dry, 0, waterlevel_dry.size() - 1, compareUnderflow);
+
+    //Save to overflow.json
+    json overJ = json::array();
+    for (const Data& d : waterlevel_overflow) {
+        overJ.push_back({{"timestamp", (d.jam < 10 ? "0" : "") + to_string(d.jam) + ":" + (d.menit < 10 ? "0" : "") + to_string(d.menit)}, {"level", d.level}});
+    }
+    ofstream overFile("overflow.json");
+    overFile << overJ.dump(4);
+    overFile.close();
+
+    //Save to underflow.json
+    json underJ = json::array();
+    for (const Data& d : waterlevel_dry) {
+        underJ.push_back({{"timestamp", (d.jam < 10 ? "0" : "") + to_string(d.jam) + ":" + (d.menit < 10 ? "0" : "") + to_string(d.menit)}, {"level", d.level}});
+    }
+    ofstream underFile("underflow.json");
+    underFile << underJ.dump(4);
+    underFile.close();
+}
+
 // Masukkan ke JSON
 void writeCritical(vector<Data> dataList) {
     json j;
