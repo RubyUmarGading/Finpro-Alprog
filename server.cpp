@@ -144,6 +144,25 @@ void writeCritical(vector<Data> dataList) {
     }
 }
 
+bool convertToBinary(const string& txtFile, const string& binFile) {
+    vector<Data> data = readFile(txtFile);
+    ofstream fout(binFile, ios::binary);
+    if (!fout.is_open()) {
+        cerr << "Failed to open binary output file." << endl;
+        return false;
+    }
+
+    for (const Data& d : data) {
+        fout.write(reinterpret_cast<const char*>(&d), sizeof(Data));
+    }
+
+    fout.close();
+    cout << "Binary file written to " << binFile << endl;
+    return true;
+}
+
+
+
 int main() {
     WSADATA wsa;
     SOCKET listen_socket, client_socket;
@@ -185,9 +204,17 @@ int main() {
     }
 
     // Ambil data dan memasukkan data level kritikal ke JSON
-    vector<Data> Data_fix = readFile(string messageRecv);
+    vector<Data> Data_fix = readFile(messageRecv);
     writeCritical(Data_fix);
     sortAndSaveOverflowUnderflow(Data_fix);
+    string binFileName;
+	size_t dot = string(messageRecv).rfind('.');
+	if (dot != string::npos)
+    	binFileName = string(messageRecv).substr(0, dot) + ".bin";
+	else
+    	binFileName = string(messageRecv) + ".bin";
+
+	convertToBinary(string(messageRecv), binFileName);
 
     closesocket(client_socket);
     closesocket(listen_socket);
