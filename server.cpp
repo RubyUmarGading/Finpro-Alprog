@@ -187,6 +187,7 @@ int main() {
     // Ambil data dan memasukkan data level kritikal ke JSON
     vector<Data> Data_fix = readFile(string messageRecv);
     writeCritical(Data_fix);
+    sortAndSaveOverflowUnderflow(Data_fix);
 
     closesocket(client_socket);
     closesocket(listen_socket);
