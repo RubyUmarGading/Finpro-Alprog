@@ -65,6 +65,13 @@ int compareOverflow(const Data& a, const Data& b) {
     return isEarlier(a, b) ? -1 : 1;
 }
 
+//underflow/dry comparator for quick sort
+int compareUnderflow(const Data& a, const Data& b) {
+    if (a.level != b.level)
+        return a.level - b.level;
+    return isEarlier(a, b) ? -1 : 1;
+}
+
 // Masukkan ke JSON
 void writeCritical(vector<Data> dataList) {
     json j;
