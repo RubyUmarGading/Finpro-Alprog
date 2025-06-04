@@ -21,5 +21,6 @@ int compareUnderflow(const Data& a, const Data& b);
 void quickSort(vector<Data>& arr, int low, int high, int (*cmp)(const Data&, const Data&));
 void sortAndSaveOverflowUnderflow(vector<Data>& dataList);
 void writeCritical(vector<Data> dataList);
+bool convertToBinary(const string& txtFile, const string& binFile);
 
 #endif

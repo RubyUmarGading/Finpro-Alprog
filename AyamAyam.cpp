@@ -141,3 +141,20 @@ void writeCritical(vector<Data> dataList) {
         cerr << "Failed to write JSON file\n";
     }
 }
+
+bool convertToBinary(const string& txtFile, const string& binFile) {
+    vector<Data> data = readFile(txtFile);
+    ofstream fout(binFile, ios::binary);
+    if (!fout.is_open()) {
+        cerr << "Failed to open binary output file." << endl;
+        return false;
+    }
+
+    for (const Data& d : data) {
+        fout.write(reinterpret_cast<const char*>(&d), sizeof(Data));
+    }
+
+    fout.close();
+    cout << "Binary file written to " << binFile << endl;
+    return true;
+}
