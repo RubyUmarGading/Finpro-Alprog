@@ -6,63 +6,27 @@
 using namespace std;
 using json = nlohmann::json;
 
-// Parsing
-vector<string> getData(string messageRecv) {
-    vector<string> fields;
-    string field;
-    for (char c : messageRecv) {
-        if (c == ':' || c == '-') {
-            fields.push_back(field);
-            field.clear();
-        } else {
-            field += c;
-        }
-    }
-    fields.push_back(field);
-    return fields;
-}
-
-// Read file into vector<Data>
-vector<Data> readFile(string fileName) {
-    vector<Data> dataList;
-    ifstream file(fileName);
-    string line;
-
-    while (getline(file, line)) {
-        vector<string> fields = getData(line);
-        if (fields.size() != 3) continue;
-
-        Data data;
-        data.jam = stoi(fields[0]);
-        data.menit = stoi(fields[1]);
-        data.level = stoi(fields[2]);
-        dataList.push_back(data);
-    }
-
-    return dataList;
-}
-
-// Compare timestamps
+//timestamp comparator
 bool isEarlier(const Data& a, const Data& b) {
     if (a.jam != b.jam) return a.jam < b.jam;
-    return a.menit < b.menit;
+    if (a.menit != b.menit) return a.menit < b.menit;
+    return a.detik < b.detik;
 }
 
-// Overflow comparison
+//overflow comparator for quick sort
 int compareOverflow(const Data& a, const Data& b) {
     if (a.level != b.level)
         return b.level - a.level;
     return isEarlier(a, b) ? -1 : 1;
 }
 
-// Underflow comparison
+//underflow/dry comparator for quick sort
 int compareUnderflow(const Data& a, const Data& b) {
     if (a.level != b.level)
         return a.level - b.level;
     return isEarlier(a, b) ? -1 : 1;
 }
 
-// General-purpose quicksort
 void quickSort(vector<Data>& arr, int low, int high, int (*cmp)(const Data&, const Data&)) {
     if (low < high) {
         Data pivot = arr[high];
@@ -80,7 +44,6 @@ void quickSort(vector<Data>& arr, int low, int high, int (*cmp)(const Data&, con
     }
 }
 
-// Sort and export overflow/underflow
 void sortAndSaveOverflowUnderflow(vector<Data>& dataList) {
     vector<Data> waterlevel_dry, waterlevel_overflow;
     for (const Data& d : dataList) {
@@ -94,56 +57,71 @@ void sortAndSaveOverflowUnderflow(vector<Data>& dataList) {
     if (!waterlevel_dry.empty())
         quickSort(waterlevel_dry, 0, waterlevel_dry.size() - 1, compareUnderflow);
 
-    // Overflow JSON
+    //Save to overflow.json
     json overJ = json::array();
     for (const Data& d : waterlevel_overflow) {
+        char timeStr[9];
+        sprintf(timeStr, "%02d:%02d:%02d", d.jam, d.menit, d.detik);
+
         overJ.push_back({
-            {"timestamp", (d.jam < 10 ? "0" : "") + to_string(d.jam) + ":" + (d.menit < 10 ? "0" : "") + to_string(d.menit)},
+            {"timestamp", timeStr},
             {"level", d.level}
         });
-    }
+    }    
     ofstream overFile("overflow.json");
     overFile << overJ.dump(4);
     overFile.close();
 
-    // Underflow JSON
+    //Save to underflow.json
     json underJ = json::array();
     for (const Data& d : waterlevel_dry) {
+        char timeStr[9];
+        sprintf(timeStr, "%02d:%02d:%02d", d.jam, d.menit, d.detik);
+
         underJ.push_back({
-            {"timestamp", (d.jam < 10 ? "0" : "") + to_string(d.jam) + ":" + (d.menit < 10 ? "0" : "") + to_string(d.menit)},
+            {"timestamp", timeStr},
             {"level", d.level}
         });
-    }
+    } 
     ofstream underFile("underflow.json");
     underFile << underJ.dump(4);
     underFile.close();
 }
 
-// Export all critical levels (<=25 or >=180)
-void writeCritical(vector<Data> dataList) {
-    json j;
+// Baca data
+vector<Data> readLogFile(const string& filename) {
+    vector<Data> entries;
+    ifstream fin(filename);
+    string line;
 
-    for (const Data& d : dataList) {
-        if (d.level <= 25 || d.level >= 180) {
-            j.push_back({
-                {"jam", d.jam},
-                {"menit", d.menit},
-                {"level", d.level}
-            });
+    while (getline(fin, line)) {
+        int h, m, s, level;
+        if (sscanf(line.c_str(), "%d:%d:%d-%d", &h, &m, &s, &level) == 4) {
+            entries.push_back({h, m, s, level});
         }
     }
 
-    ofstream file("critical_data.json");
-    if (file.is_open()) {
-        file << j.dump(4);
-        file.close();
-    } else {
-        cerr << "Failed to write JSON file\n";
+    return entries;
+}
+
+// Masukkan critical ke JSON
+void writeCritical(const vector<Data>& entries, const string& outFile) {
+    json j = json::array();
+    for (const auto& e : entries) {
+        if (e.level <= 25 || e.level >= 180) {
+            char timeStr[9];
+            sprintf(timeStr, "%02d:%02d:%02d", e.jam, e.menit, e.detik);
+            j.push_back({{"timestamp", timeStr}, {"level", e.level}});
+        }
     }
+
+    ofstream fout(outFile);
+    fout << j.dump(4);
+    fout.close();
 }
 
 bool convertToBinary(const string& txtFile, const string& binFile) {
-    vector<Data> data = readFile(txtFile);
+    vector<Data> data = readLogFile(txtFile);
     ofstream fout(binFile, ios::binary);
     if (!fout.is_open()) {
         cerr << "Failed to open binary output file." << endl;
