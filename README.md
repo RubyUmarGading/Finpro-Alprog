@@ -12,6 +12,7 @@
 ### Cara Penggunaan Program
 **PraEksekusi**
 1. Buat sebuah file txt yang berisi timestamp dan ketinggian air
+
 *file txt merepresentasikan data realtime yang diberikan oleh client*
 
 **Eksekusi**
