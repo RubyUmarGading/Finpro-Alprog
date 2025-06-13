@@ -1,7 +1,6 @@
 #include <iostream>
 #include <string>
 #include <winsock2.h>
-#include <bits/stdc++.h>
 #include <fstream>
 #include <vector>
 #include "json.hpp"
@@ -14,48 +13,17 @@ using json = nlohmann::json;
 struct Data {
     int jam;
     int menit;
+    int detik;
     int level;
 };
 
-// Parsing
-vector<string> getData(string messageRecv) {
-    vector<string> fields;
-    string field;
-    for (char c : messageRecv) {
-        if (c == ':' || c == '-') {
-            fields.push_back(field);
-            field.clear();
-        } else {
-            field += c;
-        }
-    }
-    fields.push_back(field);
-    return fields;
-}
 
-// baca data
-vector<Data> readFile(string fileName) {
-    vector<Data> dataList;
-    ifstream file(fileName);
-    string line;
 
-    while (getline(file, line)) {
-        vector<string> fields = getData(line);
-        
-        Data data;
-        data.jam = stoi(fields[0]);
-        data.menit = stoi(fields[1]);
-        data.level = stoi(fields[2]);
-        dataList.push_back(data);
-        
-    }
-
-    return dataList;
-}
 //timestamp comparator
 bool isEarlier(const Data& a, const Data& b) {
     if (a.jam != b.jam) return a.jam < b.jam;
-    return a.menit < b.menit;
+    if (a.menit != b.menit) return a.menit < b.menit;
+    return a.detik < b.detik;
 }
 
 //overflow comparator for quick sort
@@ -105,8 +73,14 @@ void sortAndSaveOverflowUnderflow(vector<Data>& dataList) {
     //Save to overflow.json
     json overJ = json::array();
     for (const Data& d : waterlevel_overflow) {
-        overJ.push_back({{"timestamp", (d.jam < 10 ? "0" : "") + to_string(d.jam) + ":" + (d.menit < 10 ? "0" : "") + to_string(d.menit)}, {"level", d.level}});
-    }
+        char timeStr[9];
+        sprintf(timeStr, "%02d:%02d:%02d", d.jam, d.menit, d.detik);
+
+        overJ.push_back({
+            {"timestamp", timeStr},
+            {"level", d.level}
+        });
+    }    
     ofstream overFile("overflow.json");
     overFile << overJ.dump(4);
     overFile.close();
@@ -114,38 +88,53 @@ void sortAndSaveOverflowUnderflow(vector<Data>& dataList) {
     //Save to underflow.json
     json underJ = json::array();
     for (const Data& d : waterlevel_dry) {
-        underJ.push_back({{"timestamp", (d.jam < 10 ? "0" : "") + to_string(d.jam) + ":" + (d.menit < 10 ? "0" : "") + to_string(d.menit)}, {"level", d.level}});
-    }
+        char timeStr[9];
+        sprintf(timeStr, "%02d:%02d:%02d", d.jam, d.menit, d.detik);
+
+        underJ.push_back({
+            {"timestamp", timeStr},
+            {"level", d.level}
+        });
+    } 
     ofstream underFile("underflow.json");
     underFile << underJ.dump(4);
     underFile.close();
 }
 
-// Masukkan ke JSON
-void writeCritical(vector<Data> dataList) {
-    json j;
+// Baca data
+vector<Data> readLogFile(const string& filename) {
+    vector<Data> entries;
+    ifstream fin(filename);
+    string line;
 
-    for (const Data& d : dataList) {
-        if (d.level <= 25 || d.level >= 180) {
-            json entry;
-            entry["jam"] = d.jam;
-            entry["menit"] = d.menit;
-            entry["level"] = d.level;
-            j.push_back(entry);
+    while (getline(fin, line)) {
+        int h, m, s, level;
+        if (sscanf(line.c_str(), "%d:%d:%d-%d", &h, &m, &s, &level) == 4) {
+            entries.push_back({h, m, s, level});
         }
     }
 
-    ofstream file("critical_data.json");
-    if (file.is_open()) {
-        file << j.dump(4);
-        file.close();
-    } else {
-        cerr << "Failed to write JSON file\n";
+    return entries;
+}
+
+// Masukkan critical ke JSON
+void writeCritical(const vector<Data>& entries, const string& outFile) {
+    json j = json::array();
+    for (const auto& e : entries) {
+        if (e.level <= 25 || e.level >= 180) {
+            char timeStr[9];
+            sprintf(timeStr, "%02d:%02d:%02d", e.jam, e.menit, e.detik);
+            j.push_back({{"timestamp", timeStr}, {"level", e.level}});
+        }
     }
+
+    ofstream fout(outFile);
+    fout << j.dump(4);
+    fout.close();
 }
 
 bool convertToBinary(const string& txtFile, const string& binFile) {
-    vector<Data> data = readFile(txtFile);
+    vector<Data> data = readLogFile(txtFile);
     ofstream fout(binFile, ios::binary);
     if (!fout.is_open()) {
         cerr << "Failed to open binary output file." << endl;
@@ -168,8 +157,7 @@ int main() {
     SOCKET listen_socket, client_socket;
     struct sockaddr_in server, client;
     int c, recv_size;
-    char messageRecv[100];
-    string messageSend;
+    char buffer[100];
 
     WSAStartup(MAKEWORD(2,2), &wsa);
 
@@ -183,40 +171,48 @@ int main() {
 
     cout << "Waiting for incoming connections..." << endl;
 
-    c = sizeof(struct sockaddr_in);
-    client_socket = accept(listen_socket, (struct sockaddr*)&client, &c);
+    // Menerima data dari water tank simulator
+    while (true) {
+        c = sizeof(struct sockaddr_in);
+        client_socket = accept(listen_socket, (struct sockaddr*)&client, &c);
 
-    cout << "Connection accepted" << endl;
+        cout << "Connection accepted" << endl;
 
+        if (client_socket == INVALID_SOCKET) continue;
 
-    // Menerima data dari client
-    recv_size = recv(client_socket, messageRecv, sizeof(messageRecv) - 1, 0); 
-    
-    // Mengecek apakah terjadi kesalahan saat menerima data
-    if (recv_size == SOCKET_ERROR) {
-        cout << "Receive failed" << endl;
-    } else {
-        // Menambahkan null-terminator agar bisa diproses sebagai string C++
-        messageRecv[recv_size] = '\0';  
-        
-        // Menampilkan pesan yang diterima dari client
-        cout << "Received message from client: " << messageRecv << endl;
+        cout << "Client connected\n";
+
+        recv_size = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+        if (recv_size != SOCKET_ERROR) {
+            buffer[recv_size] = '\0';
+            cout << "Received water level: " << buffer << endl;
+
+            // Waktu server
+            SYSTEMTIME st;
+            GetLocalTime(&st);
+            int level = atoi(buffer);
+
+            char timestamp[16];
+            sprintf(timestamp, "%02d:%02d:%02d-%d", st.wHour, st.wMinute, st.wSecond, level);
+
+            // Masukkan ke log
+            ofstream fout("server_log.txt", ios::app);
+            fout << timestamp << endl;
+            fout.close();
+
+            // Masukkan nilai critical ke JSON
+            vector<Data> logs = readLogFile("server_log.txt");
+            writeCritical(logs, "critical_log.json");
+
+            // Sorting overflow dan dry run
+            sortAndSaveOverflowUnderflow(logs);
+            
+        }
+
+        closesocket(client_socket); 
     }
 
-    // Ambil data dan memasukkan data level kritikal ke JSON
-    vector<Data> Data_fix = readFile(messageRecv);
-    writeCritical(Data_fix);
-    sortAndSaveOverflowUnderflow(Data_fix);
-    string binFileName;
-	size_t dot = string(messageRecv).rfind('.');
-	if (dot != string::npos)
-    	binFileName = string(messageRecv).substr(0, dot) + ".bin";
-	else
-    	binFileName = string(messageRecv) + ".bin";
-
-	convertToBinary(string(messageRecv), binFileName);
-
-    closesocket(client_socket);
+    
     closesocket(listen_socket);
     WSACleanup();
 
