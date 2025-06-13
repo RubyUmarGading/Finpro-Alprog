@@ -10,13 +10,10 @@
 
 
 ### Cara Penggunaan Program
-**PraEksekusi**
-1. Buat sebuah file txt yang berisi timestamp dan ketinggian air
 
-*file txt merepresentasikan data realtime yang diberikan oleh client*
-
-**Eksekusi**
-1. Run file server dan client
-2. Input nama file txt ke dalam file client
-3. Selesai
+1. Download semua file dan masukkan ke dalam satu folder
+2. Run app server.exe
+3. Rub Water Tank.py
+4. Mainkan slider
+5. Jika sudah selesai, tutup Water Tank.py
 
